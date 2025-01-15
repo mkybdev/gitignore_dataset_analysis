@@ -80,7 +80,7 @@ else:
                             if PATTERN != "^#" and re.search(r"^#", line):
                                 continue
                             orig = line
-                            if PATTERN != "^\\!" and re.search(r"^\!", line):
+                            if not PATTERN.startswith("^\\!") and re.search(r"^\!", line):
                                 line = line[1:]
                             if len(args) > 2:
                                 if re.search(PATTERN, line) and all(

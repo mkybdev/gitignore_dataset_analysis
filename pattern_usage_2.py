@@ -13,7 +13,6 @@ if args[0] == "sum":
     dirs = args[1:]
     lines = dict()
     valid_files = 0
-    valid_parent_files = 0
     all_freq = []
     freq = []
     modes = []
@@ -22,10 +21,9 @@ if args[0] == "sum":
             result = pd.read_csv(f"./pattern_usage_2/{dir}/result.csv")
             lines[dir] = result["lines"]
             valid_files = result["all files"][0]
-            valid_parent_files = result["parent files"][0]
             all_freq.append(result["all freq"][0])
             freq.append(result["freq"].sum())
-            modes.append(result["mode"][0])
+            modes.append(result["mode"].mode()[0])
         except FileNotFoundError:
             lines[dir] = None
             modes.append(None)
@@ -38,7 +36,6 @@ if args[0] == "sum":
             "mode",
             "files",
             "file_pct",
-            "file_grp_pct",
             "freq_pct",
             "lines_mean",
             "lines_std",
@@ -48,14 +45,13 @@ if args[0] == "sum":
     )
     for i, col in enumerate(lines.columns):
         if lines[col].isnull().all():
-            summary.loc[col] = [None, 0, 0.0, 0.0, 0.0, None, None, None, None]
+            summary.loc[col] = [None, 0, 0.0, 0.0, None, None, None, None]
             continue
         stats = lines[col].dropna().describe()
         summary.loc[col] = [
             modes[i],
             lines[col].notna().sum(),
             float(lines[col].notna().sum()) / float(valid_files) * 100.0,
-            float(lines[col].notna().sum()) / float(valid_parent_files) * 100.0,
             float(freq[i]) / float(all_freq[i]) * 100.0,
             stats["mean"],
             stats["std"],
@@ -82,7 +78,7 @@ else:
 
     res_dict = dict()
     valid_files = 0
-    valid_parent_files = 0
+    valid_parents = 0
     all_freq = 0
     freq_list = []
 
@@ -91,7 +87,6 @@ else:
             if not filename.endswith("gitignore"):
                 continue
             filepath = os.path.join(pathname, filename)
-            flag = False
             freq = 0
             if os.path.isfile(filepath):
                 with open(filepath, "r") as file:
@@ -101,7 +96,7 @@ else:
                             if PATTERN != "^#" and re.search(r"^#", line):
                                 continue
                             orig = line
-                            if PATTERN != "^\\!" and re.search(r"^\!", line):
+                            if not PATTERN.startswith("^\\!") and re.search(r"^\!", line):
                                 line = line[1:]
                             if len(args) > 3 and args[3] != "multi":
                                 if re.search(PATTERN, line) and all(
@@ -127,7 +122,6 @@ else:
                                     lines[line_number] = orig
                                     freq += len(re.findall(PATTERN, line))
                             if re.search(PARENT, line):
-                                flag = True
                                 all_freq += len(re.findall(PARENT, line))
                         if lines:
                             tmp = len(res_dict)
@@ -137,8 +131,6 @@ else:
                     except UnicodeDecodeError:
                         continue
             valid_files += 1
-            if flag:
-                valid_parent_files += 1
 
     if not res_dict:
         print("No matches found.")
@@ -154,7 +146,6 @@ else:
     result["mode"] = result["lines"].apply(lambda x: max(set(x.values()), key=list(x.values()).count))
     result["lines"] = result["lines"].apply(lambda x: len(x))
     result["all files"] = valid_files
-    result["parent files"] = valid_parent_files
     result["all freq"] = all_freq
     result["freq"] = freq_list
     os.makedirs(f"./pattern_usage_2/{NAME}", exist_ok=True)
